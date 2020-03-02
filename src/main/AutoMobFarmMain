@@ -1,0 +1,152 @@
+package main;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.bukkit.ChatColor;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.block.Block;
+import org.bukkit.configuration.InvalidConfigurationException;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.ShapedRecipe;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
+
+import events.Events;
+
+
+public class AutoMobFarmMain extends JavaPlugin{
+	public ItemStack mobFarm;
+	private File mobFarms;
+	private FileConfiguration mobFarmscfg;
+	private static AutoMobFarmMain instance;
+	public NamespacedKey recipeKey = new NamespacedKey(this,"automobfarm.recipe");
+	public NamespacedKey mobFarmBlock = new NamespacedKey(this,"automobfarm.mobFarmBlock");
+	private Events eClass;
+	
+	public void onEnable() {
+		
+		instance = this;
+		registerInstances();
+		registerEvents();
+		loadConfig();
+		registerRecipe();
+		registerCConfigs();
+		startRunnable();
+		
+		getServer().getConsoleSender().sendMessage("AutoMobFarm succesfully loaded everything");
+	}
+	private void registerCConfigs() {
+		mobFarms = retFile("mobFarms.yml");
+		mobFarmscfg = retCfg(mobFarms);
+	}
+	public void onDisable() {
+		
+	}
+	public void loadConfig() {
+		getConfig().options().copyDefaults(true);
+		saveConfig();
+	}
+	public static AutoMobFarmMain getInstance() {
+		return instance;
+	}
+	private void registerInstances() {
+		eClass = new Events();
+	}
+	private void registerEvents() {
+		this.getServer().getPluginManager().registerEvents(this.eClass, this);
+	}
+	private void registerRecipe() {
+		
+		mobFarm = new ItemStack(Material.IRON_BARS);
+		ItemMeta meta = mobFarm.getItemMeta();
+		String rawName = getConfig().getString("Config.Name");
+		String name = ChatColor.translateAlternateColorCodes('&', rawName);
+		meta.setDisplayName(name);
+		List<String> lore = new ArrayList<String>();
+		List<String> rawlore = getConfig().getStringList("Config.Lore");
+		for(String string : rawlore) {
+			String translated = ChatColor.translateAlternateColorCodes('&', string);
+			lore.add(translated);
+		}
+		meta.setLore(lore);
+		meta.getPersistentDataContainer().set(mobFarmBlock, PersistentDataType.STRING, "automobfarm.mobfarm");
+		mobFarm.setItemMeta(meta);
+		
+		
+		if(getConfig().getBoolean("Config.isCraftable")) {
+		ShapedRecipe recipe = new ShapedRecipe(recipeKey,mobFarm);
+		recipe.shape(" S ","SIS","III");
+		recipe.setIngredient('S', Material.IRON_SWORD);
+		recipe.setIngredient('I', Material.IRON_BLOCK);
+		getServer().addRecipe(recipe);
+		}
+		
+	}
+	
+	
+	private File retFile(String name) {
+		File file = new File(getDataFolder(),name);
+		if(!file.exists()) {
+			file.getParentFile().mkdirs();
+			saveResource(name,false);
+		}
+		return file;
+	}
+	private FileConfiguration retCfg(File filetoLoad) {
+		FileConfiguration cfg = new YamlConfiguration();
+		try {
+			cfg.load(filetoLoad);
+		}catch(IOException | InvalidConfigurationException e) {
+			e.printStackTrace();
+		}
+		return cfg;
+	}
+	public FileConfiguration getMobFarms() {
+		return mobFarmscfg;
+	}
+	public void saveMobFarms() {
+		try {
+			mobFarmscfg.save(mobFarms);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	public void startRunnable() {
+		new BukkitRunnable() {
+
+			@Override
+			public void run() {
+				if(getMobFarms().contains("MobFarms")) {
+					for(String key : getMobFarms().getConfigurationSection("MobFarms").getKeys(false)) {
+						Location loc = (Location) getMobFarms().get("MobFarms."+key);
+						Block b = loc.getBlock();
+						if(loc.getChunk().isLoaded()) {
+							if(b.getType()==Material.IRON_BARS) {
+								for(LivingEntity entity : loc.getNearbyLivingEntities(2)){
+									if(entity.getType()!=EntityType.PLAYER) {
+										entity.damage(5);
+									}
+									
+								}
+							}
+						}
+					}
+				}
+				
+			}
+			
+		}.runTaskTimer(this, 0, 20);
+	}
+
+}
