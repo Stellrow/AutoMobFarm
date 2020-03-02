@@ -1,0 +1,72 @@
+package events;
+
+import java.util.Random;
+
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
+
+import main.AutoMobFarmMain;
+import net.md_5.bungee.api.ChatColor;
+
+public class Events implements Listener{
+private AutoMobFarmMain pl = AutoMobFarmMain.getInstance();
+	
+	@EventHandler
+	public void onPlace(BlockPlaceEvent e) {
+		if(e.getBlock().getType()==Material.IRON_BARS) {
+			ItemStack item = e.getPlayer().getInventory().getItemInMainHand();
+			if(item.hasItemMeta()&&item.getItemMeta().getPersistentDataContainer().get(pl.mobFarmBlock, PersistentDataType.STRING)=="automobfarm.mobfarm") {
+			e.getPlayer().sendMessage(retTString(pl.getConfig().getString("Config.PlaceMessage")));
+			saveBlock(e.getBlock().getLocation());
+		}
+		}
+	}
+	@EventHandler
+	public void breakMobFarm(BlockBreakEvent e) {
+		if(e.getBlock().getType()==Material.IRON_BARS) {
+			Location checked = e.getBlock().getLocation();
+			if(!pl.getMobFarms().contains("MobFarms")) {
+				return;
+			}
+			for(String key : pl.getMobFarms().getConfigurationSection("MobFarms").getKeys(false)) {
+				Location toCheck = (Location) pl.getMobFarms().get("MobFarms."+key);
+				if(checked.equals(toCheck)) {
+					pl.getMobFarms().set("MobFarms."+key, null);
+					pl.saveMobFarms();
+					e.setDropItems(false);
+					checked.getWorld().dropItemNaturally(checked, pl.mobFarm);
+					e.getPlayer().sendMessage(retTString(pl.getConfig().getString("Config.BreakMessage")));
+				}
+			}
+		}
+		
+	}
+	public void saveBlock(Location loc) {
+		int UniqueID = genUniqueID();
+		pl.getMobFarms().set("MobFarms."+UniqueID, loc);
+		pl.saveMobFarms();
+	}
+	private int genUniqueID() {
+		Random rnd = new Random();
+		int id = rnd.nextInt(10000);
+		if(pl.getMobFarms().contains("MobFarms")) {
+			if(pl.getMobFarms().contains("MobFarms."+id)) {
+				id = genUniqueID();
+			}
+		}else {
+			return id;
+		}
+		return id;
+	}
+	public String retTString(String toTranslate) {
+		String toRet = ChatColor.translateAlternateColorCodes('&', toTranslate);
+		return toRet;
+	}
+
+}
