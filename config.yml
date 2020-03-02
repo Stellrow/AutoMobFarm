@@ -1,0 +1,8 @@
+Config:
+    PlaceMessage: '&cYou placed a MobFarm!'
+    BreakMessage: '&cYou just destroyed a MobFarm'
+    isCraftable: true
+    Name: '&4AutoMobFarm'
+    Lore:
+        - '&7An auto mob farm,it kills monsters'
+        - '&7above it!'
